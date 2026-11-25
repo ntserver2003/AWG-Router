@@ -304,7 +304,7 @@ async function loadUpdateLog() {
 function updateNotice() {
   const v = S.version || {}, u = updState();
   if (updatingTo) return "";
-  const news = v.latest ? `<a href="https://github.com/r-slashslash/AWG-Router/releases/tag/v${esc(v.latest)}" target="_blank" rel="noopener noreferrer">${esc(t("sy.whats_new"))}</a>` : "";
+  const news = v.latest ? `<a href="https://github.com/ntserver2003/AWG-Router/releases/tag/v${esc(v.latest)}" target="_blank" rel="noopener noreferrer">${esc(t("sy.whats_new"))}</a>` : "";
   if (u.state === "failed" && v.available) {
     const log = updLog.length ? updLog : [];
     return `<div class="notice warn" style="margin:14px 0 0">

@@ -61,7 +61,7 @@ RUN git init -q . && git remote add origin https://github.com/heiher/hev-socks5-
 
 FROM python:3.15-alpine@sha256:0f9552bb28711333da16915ec146f5e6bb44a7fdac9ced15dc17c2e0206346dd
 # по этой метке GHCR связывает готовый образ с репозиторием
-LABEL org.opencontainers.image.source="https://github.com/r-slashslash/AWG-Router"
+LABEL org.opencontainers.image.source="https://github.com/ntserver2003/AWG-Router"
 RUN apk add --no-cache iproute2 iproute2-tc nftables util-linux-misc procps-ng ca-certificates openssl bash
 COPY --from=awg-go /out/amneziawg-go /usr/bin/amneziawg-go
 COPY --from=awg-tools /out/awg /usr/bin/awg
