@@ -34,7 +34,7 @@ RUN git init -q . && git remote add origin https://github.com/amnezia-vpn/amnezi
 
 FROM alpine:3.24@sha256:f59abe656b692d901e184be3445e084786602108599d2a51d229c0f5a48c71bf
 LABEL maintainer="AWG Router" \
-      org.opencontainers.image.source="https://github.com/r-slashslash/AWG-Router"
+      org.opencontainers.image.source="https://github.com/ntserver2003/AWG-Router"
 # iproute2 — awg-quick (ip link … type amneziawg, маршруты), iptables — NAT клиентов в start.sh, nftables — правила
 # панели «до её запуска», kmod — загрузка модуля ядра из смонтированного /lib/modules
 RUN apk add --no-cache bash dumb-init iproute2 iptables nftables kmod

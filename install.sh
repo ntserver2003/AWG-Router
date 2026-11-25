@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # AWG Router installer — a control panel for AmneziaWG.
-#   curl -fsSL https://raw.githubusercontent.com/r-slashslash/AWG-Router/main/install.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/ntserver2003/AWG-Router/main/install.sh | bash
 #   bash install.sh                — install or update (settings are kept)
 #   bash install.sh --update       — download the latest version from GitHub and update
 #   bash install.sh --reconfigure  — choose the server mode and access method again
@@ -20,7 +20,7 @@
 #   how long to wait for a ready image before building it here: AWGR_PULL_TIMEOUT=600 (seconds)
 set -uo pipefail
 
-REPO="${AWGR_REPO:-r-slashslash/AWG-Router}"
+REPO="${AWGR_REPO:-ntserver2003/AWG-Router}"
 BRANCH="${AWGR_BRANCH:-main}"
 INSTALL_DIR="${AWGR_DIR:-/opt/awg-router}"
 

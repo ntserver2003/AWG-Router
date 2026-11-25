@@ -18,7 +18,7 @@ from .version import VERSION
 
 log = logging.getLogger("awgr.updates")
 
-REPO = os.environ.get("AWGR_REPO", "r-slashslash/AWG-Router")
+REPO = os.environ.get("AWGR_REPO", "ntserver2003/AWG-Router")
 BRANCH = os.environ.get("AWGR_BRANCH", "main")
 URL = f"https://raw.githubusercontent.com/{REPO}/{BRANCH}/app/version.py"
 RELEASE_URL = f"https://github.com/{REPO}/releases/latest"

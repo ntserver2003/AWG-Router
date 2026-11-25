@@ -1,0 +1,108 @@
+# Fork only (FORK.md): keeps main in step with r-slashslash/AWG-Router and publishes this fork's
+# release vX once upstream has published vX.
+#
+# 1. sync (daily and by hand): merges upstream main into main through the "Sync fork" API.
+#    The push runs release.yml here, which tests the code, builds the images into
+#    ghcr.io/<owner>/awg-router and refreshes the draft v<VERSION>, the same as upstream.
+#    On a conflict it opens or updates the issue "Upstream sync failed"; merge by hand (FORK.md).
+# 2. publish (after every Release run, and daily): if upstream's latest release vX is published and
+#    the draft vX here carries the ready images (IMAGES in the archive), publish it as Latest.
+#    Installed panels (install.sh / app/updates.py point at this repository) then update from it.
+#
+# Needs the secret SYNC_TOKEN: a fine-grained token for this repository only, with
+# Contents: read and write, and Workflows: read and write. GITHUB_TOKEN can't do this job:
+#   - GitHub refuses to let it merge upstream changes to .github/workflows;
+#   - its pushes and releases don't start other workflows, so release.yml would never run.
+name: Sync upstream
+
+on:
+  schedule:
+    - cron: "41 2 * * *"
+  workflow_run:
+    workflows: [Release]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sync-upstream
+  cancel-in-progress: false
+
+env:
+  UPSTREAM: r-slashslash/AWG-Router
+
+jobs:
+  sync:
+    if: github.repository_owner != 'r-slashslash' && github.event_name != 'workflow_run'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    env:
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - name: Merge upstream main into main
+        env:
+          GH_TOKEN: ${{ secrets.SYNC_TOKEN }}
+        run: |
+          [ -n "$GH_TOKEN" ] || { echo "::error::the secret SYNC_TOKEN is not set (see the header of this file)"; exit 1; }
+          out=$(gh api -X POST "repos/$GH_REPO/merge-upstream" -f branch=main 2>&1) || {
+            echo "$out"; echo "::error::merge-upstream failed: $out"; exit 1; }
+          echo "$out" | jq -r '"\(.merge_type): \(.message)"' | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Report a failed sync
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          title="Upstream sync failed"
+          body=$(printf '%s\n\n%s\n\n%s\n' \
+            "Merging $UPSTREAM main into main failed: $RUN_URL" \
+            "Usually a conflict with this fork's own changes. Merge by hand (FORK.md):" \
+            '`git fetch upstream && git merge upstream/main`, resolve, push.')
+          # Issues are off in a new fork by default: then the failed run (and GitHub's e-mail about it) is the report
+          num=$(gh issue list --state open --search "in:title \"$title\"" --json number,title \
+            --jq "[.[] | select(.title == \"$title\")][0].number // empty" 2>/dev/null) || {
+            echo "::warning::could not open an issue (are Issues enabled in this repository?)"; exit 0; }
+          if [ -n "$num" ]; then
+            gh issue comment "$num" --body "$body"
+          else
+            gh issue create --title "$title" --body "$body"
+          fi
+
+  publish:
+    if: >-
+      github.repository_owner != 'r-slashslash' && always() &&
+      (github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success')
+    needs: sync
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.SYNC_TOKEN }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - name: Publish the release upstream has published
+        run: |
+          [ -n "$GH_TOKEN" ] || { echo "::error::the secret SYNC_TOKEN is not set (see the header of this file)"; exit 1; }
+          up=$(gh release view -R "$UPSTREAM" --json tagName --jq .tagName 2>/dev/null || true)
+          [ -n "$up" ] || { echo "Upstream has no published release."; exit 0; }
+          state=$(gh release view "$up" --json isDraft --jq 'if .isDraft then "draft" else "published" end' 2>/dev/null || echo none)
+          case "$state" in
+            published) echo "$up is already published here."; exit 0 ;;
+            none) echo "::warning::upstream published $up, but there is no draft $up here (release.yml did not build one: check its runs)"; exit 0 ;;
+          esac
+          busy=$(gh run list -w release.yml -b main --limit 20 --json status \
+            --jq '[.[] | select(.status != "completed")] | length')
+          if [ "$busy" != 0 ]; then
+            echo "Release is still running on main: $up will be published after it finishes."; exit 0
+          fi
+          mkdir -p chk
+          gh release download "$up" -p awg-router.tar.gz -D chk --clobber
+          tar -tzf chk/awg-router.tar.gz awg-router/IMAGES >/dev/null 2>&1 \
+            || { echo "::error::the draft $up has no IMAGES in its archive: panels would build the images themselves"; exit 1; }
+          tar -xzOf chk/awg-router.tar.gz awg-router/IMAGES
+          gh release edit "$up" --draft=false --latest
+          echo "Published $up (upstream published it too)." | tee -a "$GITHUB_STEP_SUMMARY"
