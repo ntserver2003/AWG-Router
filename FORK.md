@@ -9,6 +9,7 @@
 | `install.sh`, `app/updates.py` | The default `AWGR_REPO` is `ntserver2003/AWG-Router`. Installs, `awg-router update`, the panel's Update button and its new-version check all use this fork. |
 | `app/static/js/system.js` | The "What's new" link opens this fork's release. |
 | `Dockerfile`, `awg-server/Dockerfile` | `org.opencontainers.image.source` points to this fork, so the images in `ghcr.io/ntserver2003/awg-router` are linked to this repository. |
+| `app/awgserver.py`, `tests/test_fork_peer_comments.py` | `#` comments inside a `[Peer]` block survive the panel's rewrites of the server config. They're written back right after `[Peer]`, where amneziawg-installer keeps `#_Name = <name>`. Without this, the installer and bots built on it, such as awgram, lose all their clients on the panel's first write. In a client disabled in the panel, they're commented out (`# #_Name = …`), so the installer doesn't see it. Comment lines with control characters are dropped when a backup is restored. |
 | `.github/workflows/sync-upstream.yml` | Daily sync with upstream, plus publishing releases (see below). |
 | `FORK.md` | This file. |
 
