@@ -80,6 +80,8 @@ class Peer:
     allowed_ips: str = ""
     extra: list[tuple[str, str]] = field(default_factory=list)
     enabled: bool = True
+    # fork: `#` comments of the block as they are (amneziawg-installer: `#_Name = <name>`) — written back after [Peer]
+    comments: list[str] = field(default_factory=list)
 
     @property
     def ip(self) -> str | None:
@@ -187,10 +189,13 @@ class ServerConf:
             lines += p.extra
             if p.enabled:
                 out.append("[Peer]")
+                out += p.comments
                 out += [f"{k} = {v}" for k, v in lines]
             else:
                 out.append(DISABLED_MARK)
                 out.append("# [Peer]")
+                # «# #_Name = …»: the installer must not see a client that is off (fork, FORK.md)
+                out += [f"# {c}" for c in p.comments]
                 out += [f"# {k} = {v}" for k, v in lines]
             out.append("")
         return "\n".join(out)
@@ -241,6 +246,9 @@ def parse(text: str) -> ServerConf:
             if body == "[Peer]":
                 peer = Peer(public_key="", enabled=False)
                 continue
+            if body.startswith("#") and peer is not None:    # fork: a comment of the block, «# #_Name = …»
+                peer.comments.append(body)
+                continue
             if "=" in body and peer is not None:
                 k, v = (x.strip() for x in body.split("=", 1))
                 _peer_kv(peer, k, v)
@@ -255,6 +263,9 @@ def parse(text: str) -> ServerConf:
                 peer = Peer(public_key="")
             continue
         if line.startswith("#") or line.startswith(";"):
+            if line.startswith("#") and section == "peer" and peer is not None:    # fork: kept, see Peer.comments
+                peer.comments.append(line)
+                continue
             m = re.match(r"^#\s*(I[1-5])\s*=\s*(.*)$", line)
             if m and section == "interface" and m.group(2).strip():
                 sc.commented[m.group(1)] = m.group(2).strip()
@@ -549,6 +560,9 @@ def foreign_ok(text: str, sc: ServerConf) -> bool:
         if not all(NAME_RE.match(k) for k, _ in p.extra):
             return False
         p.extra = [(k, v) for k, v in p.extra if k in PEER_EXTRA]
+        # fork: comments are written back now (Peer.comments) — not with control characters: a NUL makes grep
+        # take the server config for a binary file, and the installer would find no clients
+        p.comments = [c for c in p.comments if not any(ch != "\t" and unicodedata.category(ch) == "Cc" for ch in c)]
     return True
 
 
